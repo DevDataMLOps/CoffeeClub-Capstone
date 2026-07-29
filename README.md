@@ -95,3 +95,38 @@ The completion rate was calculated by dividing total completed offers by total r
 SELECT *
 FROM coffee.vw_offer_event_summary
 ORDER BY completion_rate DESC NULLS LAST;
+
+## Task 4: Demographic Feature Scaling
+
+The goal of Task 4 was to create demographic groups directly inside the database for faster reporting.
+
+Two new customer columns were created:
+
+- `income_bucket`
+- `age_group`
+
+The `income_bucket` column groups customers into:
+
+- Low Income
+- Middle Income
+- High Income
+- Unknown Income
+
+The `age_group` column groups customers into:
+
+- Under 18
+- 18-24
+- 25-34
+- 35-44
+- 45-54
+- 55-64
+- 65+
+- Unknown Age
+
+The age groups were created after cleaning the placeholder age value of `118`, so those records do not distort demographic reporting.
+
+A demographic summary view was also created:
+
+```sql
+SELECT *
+FROM coffee.vw_customer_demographic_summary;
