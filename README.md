@@ -75,3 +75,23 @@ The `day` column was created using integer division:
 ```sql
 time / 24
 
+## Task 3: Analytics - Offer Aggregations
+
+The goal of Task 3 was to create SQL summary views that allow non-technical users to understand offer performance without writing SQL.
+
+A view named `coffee.vw_offer_event_summary` was created to summarize offer activity for each offer.
+
+The view includes:
+
+- Total offers received
+- Total offers viewed
+- Total offers completed
+- View rate
+- Completion rate
+
+The completion rate was calculated by dividing total completed offers by total received offers.
+
+```sql
+SELECT *
+FROM coffee.vw_offer_event_summary
+ORDER BY completion_rate DESC NULLS LAST;
