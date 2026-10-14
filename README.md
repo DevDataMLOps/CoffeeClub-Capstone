@@ -1,132 +1,90 @@
-# CoffeeClub Post-Migration Optimization & Analytics
+# CoffeeClub — PostgreSQL Optimization & Analytics
 
-## Project Overview
+A SQL capstone for improving a migrated customer/offer database through relational constraints, indexes, data cleaning, feature engineering, and analytical views.
 
-This project focuses on optimizing the CoffeeClub database after migration into PostgreSQL. The goal is to improve database reliability, enforce relationships between tables, clean and transform raw data, and create SQL views that make offer performance easy to understand.
+## Why it exists
 
-The project uses the following CoffeeClub tables in the `coffee` schema:
+A migrated database needs more than loaded tables: relationships must be enforced, missing values handled explicitly, and campaign activity made usable for reporting. This project implements those steps in PostgreSQL.
 
-- `coffee.customers`
-- `coffee.events`
-- `coffee.offers`
-- `coffee.offer_channels`
+## Technology and implemented features
 
-The final SQL script is saved as:
+**PostgreSQL · SQL · B-tree indexes · relational constraints · analytical views**
 
-- `schema_final.sql`
+- Primary and foreign keys across customers, offers, events, and offer channels.
+- Indexes for common joins, filters, and customer/time queries.
+- Derived day, hour, and interval features.
+- Conversion of placeholder age 118 to NULL.
+- Income and age groups that preserve unknown values.
+- Views for offer activity, completion rankings, informational-offer transaction associations, and customer demographics.
 
----
+## Repository structure
 
-## Task 1: Optimization and Constraints
+| File | Purpose |
+|---|---|
+| [schema_final.sql](schema_final.sql) | Inspection queries, schema changes, transformations, views, and evidence queries |
+| [task3.1_offer_summary.png](task3.1_offer_summary.png) | Saved offer-summary screenshot |
+| [Additional offer-summary screenshot](task3_offer_summary%20%282%29.png) | Additional saved query output |
 
-### Objective
+## Query output examples
 
-The goal of Task 1 was to improve the database structure by adding primary keys, foreign keys, and indexes.
+![Saved offer-summary query output](task3.1_offer_summary.png)
 
-### Primary Keys
+The screenshot is a saved example; this documentation update did not rerun the database or establish a performance benchmark.
 
-Primary keys were added to uniquely identify rows in the main tables.
+## Setup and execution
 
-The expected primary key relationships are:
+Install PostgreSQL and a SQL client such as psql or pgAdmin. This repository assumes that the source data has already been migrated into the `coffee` schema; it does not include the initial schema creation or source data loader.
 
-- `coffee.customers.customer_id`
-- `coffee.offers.offer_id`
-- `coffee.events.event_id`
-- `coffee.offer_channels.offer_id` and channel column as a composite key
+Before running, confirm these tables and columns exist:
 
-If the `events` table did not already contain an `event_id`, a surrogate `event_id` column was added so that every event row could be uniquely identified.
+| Table | Required columns used by the script |
+|---|---|
+| `coffee.customers` | `customer_id`, `gender`, `age`, `income` |
+| `coffee.offers` | `offer_id`, `offer_type`, `difficulty`, `reward`, `duration` |
+| `coffee.events` | `event_id`, `customer_id`, `offer_id`, `event`, `time` |
+| `coffee.offer_channels` | `offer_id`, `channel_name` |
 
-### Foreign Keys
+Use a disposable development copy: the script changes constraints and updates data. Duplicate keys, orphaned references, existing constraint names, or incompatible column types must be resolved first. The script is not fully idempotent.
 
-Foreign keys were added to enforce relationships between the tables:
+```bash
+git clone https://github.com/DevDataMLOps/CoffeeClub-Capstone.git
+cd CoffeeClub-Capstone
+psql -h localhost -U YOUR_USER -d YOUR_DATABASE -v ON_ERROR_STOP=1 --single-transaction -f schema_final.sql
+```
 
-- `coffee.events.customer_id` references `coffee.customers.customer_id`
-- `coffee.events.offer_id` references `coffee.offers.offer_id`
-- `coffee.offer_channels.offer_id` references `coffee.offers.offer_id`
+Alternatively, inspect and execute the script in pgAdmin's Query Tool.
 
-These constraints help prevent orphaned records. For example, an event cannot reference a customer that does not exist in the customers table.
+## Usage examples
 
-### Indexes
-
-Indexes were created on high-traffic columns used in joins, filtering, grouping, and analytics queries.
-
-Important indexed columns include:
-
-- `customer_id`
-- `offer_id`
-- `event`
-- `time`
-- `offer_type`
-- `age`
-- `income`
-
-A composite index on `events(customer_id, time)` was also created to support time-window analysis, especially for identifying transactions that happened after informational offers were viewed.
-
----
-
-## Task 2: Feature Engineering and Data Integrity
-
-### Time Transformation
-
-The original `time` column stores the number of hours since the campaign started. To make this more useful for analysis, new readable time columns were created.
-
-The `day` column was created using integer division:
-
-```sql
-time / 24
-
-## Task 3: Analytics - Offer Aggregations
-
-The goal of Task 3 was to create SQL summary views that allow non-technical users to understand offer performance without writing SQL.
-
-A view named `coffee.vw_offer_event_summary` was created to summarize offer activity for each offer.
-
-The view includes:
-
-- Total offers received
-- Total offers viewed
-- Total offers completed
-- View rate
-- Completion rate
-
-The completion rate was calculated by dividing total completed offers by total received offers.
+Rank offers by completion rate:
 
 ```sql
 SELECT *
 FROM coffee.vw_offer_event_summary
 ORDER BY completion_rate DESC NULLS LAST;
+```
 
-## Task 4: Demographic Feature Scaling
-
-The goal of Task 4 was to create demographic groups directly inside the database for faster reporting.
-
-Two new customer columns were created:
-
-- `income_bucket`
-- `age_group`
-
-The `income_bucket` column groups customers into:
-
-- Low Income
-- Middle Income
-- High Income
-- Unknown Income
-
-The `age_group` column groups customers into:
-
-- Under 18
-- 18-24
-- 25-34
-- 35-44
-- 45-54
-- 55-64
-- 65+
-- Unknown Age
-
-The age groups were created after cleaning the placeholder age value of `118`, so those records do not distort demographic reporting.
-
-A demographic summary view was also created:
+Inspect demographic aggregates:
 
 ```sql
 SELECT *
 FROM coffee.vw_customer_demographic_summary;
+```
+
+Inspect transactions associated with informational-offer viewing windows:
+
+```sql
+SELECT *
+FROM coffee.vw_informational_offer_transaction_influence
+ORDER BY influenced_transaction_count DESC;
+```
+
+## Interpretation and validation
+
+Offer completion rates are ratios of event counts, rather than a deduplicated customer conversion funnel. Informational-offer results represent temporal associations: repeated or overlapping viewing windows may count the same transaction more than once. They do not establish causal campaign impact.
+
+Index definitions demonstrate optimization techniques; no before/after latency improvement is claimed. Future work should add reproducible fixtures, integrity checks, and `EXPLAIN (ANALYZE, BUFFERS)` benchmarks.
+
+## License status
+
+This repository currently has no license file. A public repository alone does not grant an open-source reuse license.
